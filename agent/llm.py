@@ -1,32 +1,16 @@
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
+from langchain_core.rate_limiters import InMemoryRateLimiter
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 load_dotenv()
 
-groq_llm = ChatGroq(
-    model="openai/gpt-oss-120b",
-    temperature=0,
-    max_tokens=None,
-    model_kwargs={"include_reasoning": False},
-    timeout=None,
-    max_retries=2,
-)
+# Stay under the Gemini free-tier requests-per-minute limit.
+rate_limiter = InMemoryRateLimiter(requests_per_second=4 / 60, max_bucket_size=1)
 
-openai_llm = ChatOpenAI(
-    model="gpt-4o-mini",
+gemini_llm = ChatGoogleGenerativeAI(
+    model="gemini-3.5-flash-lite",
     temperature=0,
     timeout=None,
     max_retries=2,
+    rate_limiter=rate_limiter,
 )
-
-if __name__ == "__main__":
-    messages = [
-        (
-            "system",
-            "You are a helpful assistant that translates English to French. Translate the user sentence.",
-        ),
-        ("human", "I love programming."),
-    ]
-    ai_msg = openai_llm.invoke(messages)
-    print(ai_msg.content)

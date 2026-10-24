@@ -1,14 +1,12 @@
 from uuid import uuid4
 
-from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain.agents.structured_output import ToolStrategy
 from langchain.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
-from .llm import openai_llm
+from .llm import gemini_llm
 from .prompts import agent_system_prompt
 from .schemas import Answer
 from .tools import (
@@ -18,10 +16,8 @@ from .tools import (
     issue_refund_ticket,
 )
 
-load_dotenv()
-
 agent = create_agent(
-    model=openai_llm,
+    model=gemini_llm,
     system_prompt=agent_system_prompt,
     tools=[
         calculate_right_refund,
@@ -29,7 +25,7 @@ agent = create_agent(
         issue_refund_ticket,
         get_today_date,
     ],
-    response_format=ToolStrategy(Answer),
+    response_format=Answer,
     checkpointer=InMemorySaver(
         serde=JsonPlusSerializer(allowed_msgpack_modules=[Answer])
     ),

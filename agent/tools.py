@@ -1,14 +1,11 @@
 import sys
 from datetime import date
 
-from dotenv import load_dotenv
 from langchain.tools import tool
 from loguru import logger
 
 from .data import users_data
 from .schemas import PurchaseItem
-
-load_dotenv()
 
 # Keep diagnostic logs on stderr so they never become part of the chat response.
 logger.remove()
@@ -64,12 +61,3 @@ def get_today_date() -> str:
     only use if a user exist and an item is present for refund"""
     logger.info("tool=get_today_date")
     return date.today().isoformat()
-
-
-# print(get_user_purchase_history.invoke("user123"))
-# book = PurchaseItem(name="book")
-# pen = PurchaseItem(name="pen")
-# print(calculate_right_refund.invoke({"user":"user123",
-#                                     "items":[book,pen]}))
-# print(issue_refund_ticket.invoke({"user":"user123",  "refund_amount":30}))
-# print(get_today_date.invoke("user123"))

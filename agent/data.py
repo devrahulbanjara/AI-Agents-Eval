@@ -34,5 +34,3 @@ users_data = {
         "canvas": {"price": 25, "date": "2026-7-30"},
     },
 }
-
-# print(users_data["user123"])
