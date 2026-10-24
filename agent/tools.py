@@ -1,3 +1,4 @@
+import os
 import sys
 from datetime import date
 
@@ -60,4 +61,5 @@ def get_today_date() -> str:
     This tool takes no arguments
     only use if a user exist and an item is present for refund"""
     logger.info("tool=get_today_date")
-    return date.today().isoformat()
+    # AGENT_TODAY overrides the date for reproducible evals.
+    return os.getenv("AGENT_TODAY") or date.today().isoformat()
