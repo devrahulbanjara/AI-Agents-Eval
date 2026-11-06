@@ -6,7 +6,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
-from .llm import gemini_llm
+from .llm import openai_llm
 from .prompts import agent_system_prompt
 from .schemas import Answer
 from .tools import (
@@ -16,23 +16,24 @@ from .tools import (
     issue_refund_ticket,
 )
 
-agent = create_agent(
-    model=gemini_llm,
-    system_prompt=agent_system_prompt,
-    tools=[
-        calculate_right_refund,
-        get_user_purchase_history,
-        issue_refund_ticket,
-        get_today_date,
-    ],
-    response_format=Answer,
-    checkpointer=InMemorySaver(
-        serde=JsonPlusSerializer(allowed_msgpack_modules=[Answer])
-    ),
-)
-
+def create_refund_agent(llm=openai_llm):
+    return create_agent(
+        model=llm,
+        system_prompt=agent_system_prompt,
+        tools=[
+            calculate_right_refund,
+            get_user_purchase_history,
+            issue_refund_ticket,
+            get_today_date,
+        ],
+        response_format=Answer,
+        checkpointer=InMemorySaver(
+            serde=JsonPlusSerializer(allowed_msgpack_modules=[Answer])
+        ),
+    )
 
 def run_conversation():
+    agent = create_refund_agent()
     config: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
 
     text = "I would like to request a refund"

@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 load_dotenv()
 
@@ -13,4 +14,11 @@ gemini_llm = ChatGoogleGenerativeAI(
     timeout=None,
     max_retries=2,
     rate_limiter=rate_limiter,
+)
+
+openai_llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0,
+    timeout=None,
+    max_retries=2,
 )

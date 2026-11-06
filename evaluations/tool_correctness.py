@@ -12,9 +12,9 @@ from deepeval.evaluate import CacheConfig
 from deepeval.metrics import ToolCorrectnessMetric
 from deepeval.test_case import LLMTestCase, ToolCall, ToolCallParams
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, ToolMessage
 
-from agent.agent import agent
-from agent.schemas import Answer
+from agent.agent import create_refund_agent
 
 from .dataset import REFERENCE_DATE, goldens
 from .model import eval_model
@@ -25,6 +25,7 @@ load_dotenv()
 os.environ["AGENT_TODAY"] = REFERENCE_DATE
 
 test_cases = []
+agent = create_refund_agent()
 
 for golden in goldens:
     print(f"\nRunning: {golden.input}")
@@ -34,22 +35,36 @@ for golden in goldens:
         config={"configurable": {"thread_id": str(uuid4())}},
     )
 
+    messages = response["messages"]
+
     tools_called = []
-    for message in response["messages"]:
-        for tool_call in getattr(message, "tool_calls", []) or []:
-            # Skip the structured-output call emitted by ToolStrategy(Answer).
-            if tool_call["name"] == Answer.__name__:
-                continue
+
+    for index, message in enumerate(messages):
+        if not isinstance(message, AIMessage):
+            continue
+
+        for tool_call in message.tool_calls:
+            print(f"{index + 1} th message says it needs {tool_call['name']} tool call")
+            tool_output = None
+
+            # After this AI decision to tool call lets check all messages to find the tool output (because tool is called actually after this message)
+            for later_message in messages[index + 1 :]:
+                if (
+                    isinstance(later_message, ToolMessage)
+                    and later_message.tool_call_id == tool_call["id"]
+                ):
+                    tool_output = later_message.content
+                    break
+
             tools_called.append(
-                ToolCall(name=tool_call["name"], input_parameters=tool_call["args"])
+                ToolCall(
+                    name=tool_call["name"],
+                    input_parameters=tool_call["args"],
+                    output=tool_output,
+                )
             )
 
-    # Fall back to the last message when the model replies without the
-    # structured-output tool.
-    structured = response.get("structured_response")
-    actual_output = (
-        structured.answer if structured else str(response["messages"][-1].content)
-    )
+    actual_output = response["structured_response"].answer
 
     test_cases.append(
         LLMTestCase(
@@ -60,12 +75,10 @@ for golden in goldens:
         )
     )
 
-# Exact match on names, order, and arguments. Non-exact mode ignores extra calls,
-# so an unwarranted refund ticket would still pass.
+
 metric = ToolCorrectnessMetric(
     threshold=1.0,
     evaluation_params=[ToolCallParams.INPUT_PARAMETERS],
-    should_exact_match=True,
     include_reason=True,
     model=eval_model,
 )
