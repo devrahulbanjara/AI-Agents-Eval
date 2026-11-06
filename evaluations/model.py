@@ -1,2 +1,2 @@
-# Use the same OpenAI model for DeepEval evaluation and agent generation.
+# Gemini for agent generation, OpenAI for DeepEval evaluation.
 eval_model = "gpt-4o-mini"

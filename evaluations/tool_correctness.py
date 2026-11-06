@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, ToolMessage
 
 from agent.agent import create_refund_agent
+from agent.llm import gemini_llm
 
 from .dataset import REFERENCE_DATE, goldens
 from .model import eval_model
@@ -25,7 +26,7 @@ load_dotenv()
 os.environ["AGENT_TODAY"] = REFERENCE_DATE
 
 test_cases = []
-agent = create_refund_agent()
+agent = create_refund_agent(llm=gemini_llm)
 
 for golden in goldens:
     print(f"\nRunning: {golden.input}")

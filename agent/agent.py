@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from langchain.agents import create_agent
 from langchain.messages import HumanMessage
+from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
@@ -16,7 +17,8 @@ from .tools import (
     issue_refund_ticket,
 )
 
-def create_refund_agent(llm=openai_llm):
+
+def create_refund_agent(llm: BaseChatModel = openai_llm):
     return create_agent(
         model=llm,
         system_prompt=agent_system_prompt,
@@ -31,6 +33,7 @@ def create_refund_agent(llm=openai_llm):
             serde=JsonPlusSerializer(allowed_msgpack_modules=[Answer])
         ),
     )
+
 
 def run_conversation():
     agent = create_refund_agent()

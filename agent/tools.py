@@ -20,8 +20,9 @@ logger.add(
 
 @tool
 def get_user_purchase_history(user: str) -> dict:
-    """this tool takes the user username and return a dict of the user purchase history if
-    the user exists"""
+    """Fetch the purchase history for a given user username.
+    Only call this tool if the user has explicitly stated their username in their message.
+    Do not guess, infer, or construct a username — use only what the user provided."""
     logger.info("tool=get_user_purchase_history user={}", user)
     if users_data.get(user):
         return users_data[user]
@@ -57,9 +58,7 @@ def issue_refund_ticket(user: str, refund_amount: int) -> str:
 
 @tool
 def get_today_date() -> str:
-    """Return today's date in YYYY-MM-DD format
-    This tool takes no arguments
-    only use if a user exist and an item is present for refund"""
+    """Return today's date in YYYY-MM-DD format. This tool takes no arguments."""
     logger.info("tool=get_today_date")
     # AGENT_TODAY overrides the date for reproducible evals.
     return os.getenv("AGENT_TODAY") or date.today().isoformat()
