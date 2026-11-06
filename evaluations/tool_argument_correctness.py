@@ -78,9 +78,7 @@ for golden in goldens:
 
 
 metric = ArgumentCorrectnessMetric(
-    threshold=1.0,
-    include_reason=True,
-    model=eval_model,
+    threshold=1.0, include_reason=True, model=eval_model, verbose_mode=True
 )
 
 evaluate(

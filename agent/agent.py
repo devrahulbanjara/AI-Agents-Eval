@@ -4,10 +4,11 @@ from langchain.agents import create_agent
 from langchain.messages import HumanMessage
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
+from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
-from .llm import openai_llm
+from .llm import gemini_llm, openai_llm
 from .prompts import agent_system_prompt
 from .schemas import Answer
 from .tools import (
@@ -36,8 +37,14 @@ def create_refund_agent(llm: BaseChatModel = openai_llm):
 
 
 def run_conversation():
-    agent = create_refund_agent()
-    config: RunnableConfig = {"configurable": {"thread_id": str(uuid4())}}
+    agent = create_refund_agent(gemini_llm)
+
+    langfuse_handler = CallbackHandler()
+
+    config: RunnableConfig = {
+        "configurable": {"thread_id": str(uuid4())},
+        "callbacks": [langfuse_handler],
+    }
 
     text = "I would like to request a refund"
     print(f"You: {text}", flush=True)
