@@ -1,24 +1,23 @@
+import os
+
+from agents import OpenAIChatCompletionsModel
 from dotenv import load_dotenv
-from langchain_core.rate_limiters import InMemoryRateLimiter
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI
 
 load_dotenv()
 
-# Stay under the Gemini free-tier requests-per-minute limit.
-rate_limiter = InMemoryRateLimiter(requests_per_second=4 / 60, max_bucket_size=1)
+cloudflare_account_id = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+cloudflare_api_token = os.environ["CLOUDFLARE_API_TOKEN"]
 
-gemini_llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-    temperature=0,
-    timeout=None,
-    max_retries=2,
-    rate_limiter=rate_limiter,
+cloudflare_client = AsyncOpenAI(
+    api_key=cloudflare_api_token,
+    base_url=(
+        "https://api.cloudflare.com/client/v4/"
+        f"accounts/{cloudflare_account_id}/ai/v1"
+    ),
 )
 
-openai_llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0,
-    timeout=None,
-    max_retries=2,
+cloudflare_model = OpenAIChatCompletionsModel(
+    model="@cf/google/gemma-4-26b-a4b-it",
+    openai_client=cloudflare_client,
 )

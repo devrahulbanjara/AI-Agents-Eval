@@ -1,70 +1,51 @@
+import logging
+import os
 from uuid import uuid4
 
-from langchain.agents import create_agent
-from langchain.messages import HumanMessage
-from langchain_core.language_models import BaseChatModel
-from langchain_core.runnables import RunnableConfig
-from langfuse.langchain import CallbackHandler
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+from agents import Agent, Runner, SQLiteSession
+from dotenv import load_dotenv
+from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
 
-from .llm import gemini_llm, openai_llm
+from .llm import cloudflare_model
 from .prompts import agent_system_prompt
-from .schemas import Answer
 from .tools import (
     calculate_right_refund,
-    get_today_date,
     get_user_purchase_history,
     issue_refund_ticket,
 )
 
+load_dotenv()
 
-def create_refund_agent(llm: BaseChatModel = openai_llm):
-    return create_agent(
-        model=llm,
-        system_prompt=agent_system_prompt,
+if os.getenv("LANGFUSE_SECRET_KEY"):
+    OpenAIAgentsInstrumentor().instrument()
+
+
+def create_refund_agent() -> Agent:
+    return Agent(
+        name="Refund Support Agent",
+        instructions=agent_system_prompt,
+        model=cloudflare_model,
         tools=[
             calculate_right_refund,
             get_user_purchase_history,
             issue_refund_ticket,
-            get_today_date,
         ],
-        response_format=Answer,
-        checkpointer=InMemorySaver(
-            serde=JsonPlusSerializer(allowed_msgpack_modules=[Answer])
-        ),
     )
 
 
-def run_conversation():
-    agent = create_refund_agent(gemini_llm)
+def run_conversation() -> None:
+    logging.basicConfig(level=logging.INFO)
+    agent = create_refund_agent()
+    session = SQLiteSession(f"refund-conversation-{uuid4()}")
 
-    langfuse_handler = CallbackHandler()
-
-    config: RunnableConfig = {
-        "configurable": {"thread_id": str(uuid4())},
-        "callbacks": [langfuse_handler],
-    }
-
-    text = "I would like to request a refund"
-    print(f"You: {text}", flush=True)
-
-    question = HumanMessage(content=text)
-    conversation = True
-
-    while conversation:
-        response = agent.invoke({"messages": [question]}, config=config)
-        structured_response = response["structured_response"]
-
-        print(f"\nAgent: {structured_response.answer}\n", flush=True)
-
-        conversation = structured_response.conversation
-
-        if conversation:
-            user_input = input("You: ")
-            question = HumanMessage(content=user_input)
-
-    print("the job is done!")
+    user_input = "I would like to request a refund"
+    while True:
+        print(f"You: {user_input}", flush=True)
+        result = Runner.run_sync(agent, user_input, session=session)
+        print(f"\nAgent: {result.final_output}\n", flush=True)
+        user_input = input("You: ")
+        if user_input.strip().lower() in {"exit", "quit", "done"}:
+            break
 
 
 if __name__ == "__main__":

@@ -1,85 +1,74 @@
-"""Tool correctness eval for the refund agent.
+"""Tool correctness evaluation for the refund agent.
 
-Usage (from the repo root):
+Usage from the repository root:
     uv run python -m evaluations.tool_correctness
 """
 
-import os
+import json
 from uuid import uuid4
 
+import deepeval
+from agents import Runner, add_trace_processor
 from deepeval import evaluate
 from deepeval.evaluate import CacheConfig
 from deepeval.metrics import ToolCorrectnessMetric
+from deepeval.openai_agents import DeepEvalTracingProcessor
 from deepeval.test_case import LLMTestCase, ToolCall, ToolCallParams
-from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, ToolMessage
 
 from agent.agent import create_refund_agent
-from agent.llm import gemini_llm
 
-from .dataset import REFERENCE_DATE, goldens
+from .dataset import goldens
 from .model import eval_model
 
-load_dotenv()
-
-# Pin the agent's date so date-based goldens stay valid.
-os.environ["AGENT_TODAY"] = REFERENCE_DATE
-
+add_trace_processor(DeepEvalTracingProcessor())
+agent = create_refund_agent()
 test_cases = []
-agent = create_refund_agent(llm=gemini_llm)
 
 for golden in goldens:
     print(f"\nRunning: {golden.input}")
-
-    response = agent.invoke(
-        {"messages": [{"role": "user", "content": golden.input}]},
-        config={"configurable": {"thread_id": str(uuid4())}},
+    result = Runner.run_sync(
+        agent,
+        golden.input,
+        run_config={"workflow_name": f"refund-eval-{uuid4()}"},
     )
 
-    messages = response["messages"]
-
     tools_called = []
-
-    for index, message in enumerate(messages):
-        if not isinstance(message, AIMessage):
+    for item in result.new_items:
+        if item.type != "tool_call_item":
             continue
 
-        for tool_call in message.tool_calls:
-            print(f"{index + 1} th message says it needs {tool_call['name']} tool call")
-            tool_output = None
+        tool_name = item.tool_name
+        if tool_name not in {
+            "get_user_purchase_history",
+            "calculate_right_refund",
+            "issue_refund_ticket",
+        }:
+            continue
 
-            # After this AI decision to tool call lets check all messages to find the tool output (because tool is called actually after this message)
-            for later_message in messages[index + 1 :]:
-                if (
-                    isinstance(later_message, ToolMessage)
-                    and later_message.tool_call_id == tool_call["id"]
-                ):
-                    tool_output = later_message.content
-                    break
+        raw_arguments = getattr(item.raw_item, "arguments", None)
+        if not isinstance(raw_arguments, str):
+            continue
 
-            tools_called.append(
-                ToolCall(
-                    name=tool_call["name"],
-                    input_parameters=tool_call["args"],
-                    output=tool_output,
-                )
+        tools_called.append(
+            ToolCall(
+                name=tool_name,
+                input_parameters=json.loads(raw_arguments),
             )
-
-    actual_output = response["structured_response"].answer
+        )
 
     test_cases.append(
         LLMTestCase(
             input=golden.input,
-            actual_output=actual_output,
+            actual_output=result.final_output,
             tools_called=tools_called,
             expected_tools=golden.expected_tools,
         )
     )
 
-
 metric = ToolCorrectnessMetric(
     threshold=1.0,
     evaluation_params=[ToolCallParams.INPUT_PARAMETERS],
+    should_exact_match=True,
     include_reason=True,
     model=eval_model,
 )
@@ -89,3 +78,5 @@ evaluate(
     metrics=[metric],
     cache_config=CacheConfig(use_cache=False, write_cache=False),
 )
+
+deepeval.flush_traces(timeout=30.0)

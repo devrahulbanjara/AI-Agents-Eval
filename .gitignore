@@ -15,3 +15,4 @@ wheels/
 
 # DeepEval local run cache
 .deepeval/
+.codex

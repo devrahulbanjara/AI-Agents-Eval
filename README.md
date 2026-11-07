@@ -1,9 +1,9 @@
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.14%2B-blue?logo=python&logoColor=white)
-![Agent](https://img.shields.io/badge/Agent-LangChain-grey?logo=chainlink&logoColor=white)
+![Agent](https://img.shields.io/badge/Agent-OpenAI%20Agents%20SDK-grey?logo=openai&logoColor=white)
 ![Evaluation](https://img.shields.io/badge/Evaluation-DeepEval-teal)
-![Models](https://img.shields.io/badge/Models-OpenAI%20%7C%20Gemini-purple?logo=openai&logoColor=white)
+![Models](https://img.shields.io/badge/Models-Cloudflare%20Workers%20AI%20%7C%20OpenAI-purple?logo=openai&logoColor=white)
 ![Packages](https://img.shields.io/badge/Packages-uv-blueviolet)
 
 # 🤖 AI Agents Evaluation System
@@ -16,7 +16,7 @@
 
 ## 📌 Overview
 
-This project builds and evaluates a **customer support refund agent** that handles natural-language refund requests by orchestrating a sequence of tool calls: looking up purchase history, checking today's date, computing the refund amount, and issuing a refund ticket.
+This project builds and evaluates a **customer support refund agent** that handles natural-language refund requests by orchestrating a sequence of tool calls: looking up purchase history, validating refund eligibility, computing the refund amount, and issuing a refund ticket.
 
 The evaluation layer uses **DeepEval's Tool Correctness Metric** (as of now, adding more , work in progress) to verify that the agent calls exactly the right tools, in the right order, with the right parameters — across a hand-crafted golden dataset of 12 real-world scenarios.
 
@@ -31,10 +31,10 @@ AI-Agents-Eval/
 ├── agent/
 │   ├── agent.py        # Agent factory (create_refund_agent)
 │   ├── data.py         # In-memory user purchase database
-│   ├── llm.py          # LLM instances — Gemini (generation) & OpenAI (eval)
+│   ├── llm.py          # Cloudflare OpenAI-compatible model configuration
 │   ├── prompts.py      # System prompt with refund business rules
-│   ├── schemas.py      # Pydantic models: Answer, PurchaseItem
-│   └── tools.py        # Tool definitions: purchase history, refund calc, ticket, date
+│   ├── schemas.py      # Shared Pydantic schemas
+│   └── tools.py        # OpenAI Agents SDK function tools
 ├── evaluations/
 │   ├── dataset.py      # 12 golden test cases with expected tool call sequences
 │   ├── model.py        # Evaluation model config (gpt-4o-mini)
@@ -53,9 +53,8 @@ The agent has access to four tools it must orchestrate correctly:
 | Tool | Description |
 |------|-------------|
 | `get_user_purchase_history` | Fetches purchase records for a given username |
-| `get_today_date` | Returns the current date (pinned to a reference date during evals) |
-| `calculate_right_refund` | Computes the refund value for a list of eligible items |
-| `issue_refund_ticket` | Issues the final refund ticket with the computed amount |
+| `calculate_right_refund` | Validates policy eligibility and computes the refund value |
+| `issue_refund_ticket` | Revalidates eligibility and issues the final refund ticket |
 
 ---
 
@@ -67,7 +66,7 @@ Evaluations are powered by **[DeepEval](https://github.com/confident-ai/deepeval
 
 The golden dataset covers 12 scenarios including happy paths, expired items, future-dated purchases, partial refunds, unknown users, and adversarial manipulation attempts.
 
-**Generation model:** `gemini-3.5-flash-lite`  
+**Generation model:** `@cf/google/gemma-4-26b-a4b-it` via Cloudflare Workers AI
 **Evaluation model:** `gpt-4o-mini`
 
 ### Latest Results
@@ -90,7 +89,7 @@ uv sync
 
 # Configure environment variables
 cp .env.example .env
-# Add your OPENAI_API_KEY and GOOGLE_API_KEY to .env
+# Add your Cloudflare and OpenAI credentials to .env
 ```
 
 ---
@@ -136,6 +135,7 @@ The agent will start a conversation and guide you through the refund process.
 
 ```env
 OPENAI_API_KEY=your_openai_key
-GOOGLE_API_KEY=your_google_key
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
 ```
 
